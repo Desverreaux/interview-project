@@ -1,0 +1,9 @@
+/home/ubuntu/interview-project/publish/backend
+/home/ubuntu/interview-project/publish/appsettings.Development.json
+/home/ubuntu/interview-project/publish/appsettings.json
+/home/ubuntu/interview-project/publish/backend.dll
+/home/ubuntu/interview-project/publish/backend.deps.json
+/home/ubuntu/interview-project/publish/backend.runtimeconfig.json
+/home/ubuntu/interview-project/publish/backend.pdb
+/home/ubuntu/interview-project/publish/Microsoft.AspNetCore.OpenApi.dll
+/home/ubuntu/interview-project/publish/Microsoft.OpenApi.dll
