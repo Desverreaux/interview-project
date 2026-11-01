@@ -1,0 +1,19 @@
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Frontend build outputs and dependencies
+**/node_modules/
+**/dist/
+**/dist-ssr/
+
+# SQLite databases and journal files
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite3
+
+# Local environment files
+**/.env
+**/.env.*
+!**/.env.example

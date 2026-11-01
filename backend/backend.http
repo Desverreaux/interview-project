@@ -1,6 +1,60 @@
-@backend_HostAddress = http://localhost:5051
+@backend_HostAddress = http://localhost:5000
 
-GET {{backend_HostAddress}}/weatherforecast/
+GET {{backend_HostAddress}}/api/tickets
 Accept: application/json
+
+###
+
+# Replace 4000 with an ID returned by GET /api/tickets.
+GET {{backend_HostAddress}}/api/tickets/4000
+Accept: application/json
+
+###
+
+PUT {{backend_HostAddress}}/api/tickets/4000
+Content-Type: application/json
+
+{
+  "title": "Unable to connect to Wi-Fi",
+  "description": "My laptop cannot connect to the office network.",
+  "priority": "High",
+  "status": "In Progress",
+  "assignedTechnicianId": 1
+}
+
+###
+
+GET {{backend_HostAddress}}/api/technicians
+Accept: application/json
+
+###
+
+GET {{backend_HostAddress}}/api/teams
+Accept: application/json
+
+###
+
+PUT {{backend_HostAddress}}/api/technicians/1
+Content-Type: application/json
+
+{
+  "name": "Casey Morgan",
+  "email": "casey.morgan@example.com",
+  "role": "IT Support Technician",
+  "teamId": 1,
+  "isAvailable": true
+}
+
+###
+
+POST {{backend_HostAddress}}/api/tickets
+Content-Type: application/json
+
+{
+  "title": "Unable to connect to Wi-Fi",
+  "description": "My laptop cannot connect to the office network.",
+  "requesterName": "Demo User",
+  "priority": "High"
+}
 
 ###

@@ -1,0 +1,350 @@
+AI conversation log
+Started: 2026-11-01
+
+[User]
+I understand the current limits of data permanence. A stretch goal is to have a database for consistent data. Can you implement that functionality? Also, can you start saving a log of the chat to a file in the project root called AI_Log.txt?
+
+[Assistant]
+I’ll inspect the repository to see whether an API or database already exists, and check whether AI_Log.txt already has content before touching it. A database-backed workflow may affect the frontend and backend, so I’ll confirm the smallest suitable approach before making those architectural changes.
+
+[Assistant findings]
+The repository has a .NET 10 ASP.NET Core backend with a single /api/hello endpoint and no ticket API or database configured.
+
+[User]
+Database implementation will be dealt with later, do not worry about it, we will set that up last.
+
+[Assistant]
+Understood. Database persistence is deferred until the end; the existing mock ticket data and backend will remain unchanged for now.
+
+[User]
+Can we make the detail page component?
+
+[Assistant]
+Added a TicketDetails component. Selecting a ticket card opens its details, and the back button returns to the list. The details show ticket information, description, and requester. The frontend build and lint pass, and the list/detail flow was checked at a mobile viewport.
+
+[User]
+Can we add the favorite and edit functionality that's at the top of the page of the mockup?
+
+[Assistant]
+Added a favorite toggle and an edit form for ticket title, description, priority, and status. Changes update the in-memory ticket list and appear on the card; they reset on page reload because persistence is deferred. Build, lint, and mobile browser checks pass.
+
+[User]
+Perfect, now let's do data persistence. What would be the simplest implementation for a database? Would a simple local SQL Server work?
+
+[Assistant]
+SQLite is the simplest fit for this MVP: the ASP.NET Core API can access a single database file through EF Core, without requiring a separate database server. SQL Server can work, but adds setup and service configuration. No database or application code was changed in this turn.
+
+[User]
+Alright, we can start working on that. How would I go about installing SQLite?
+
+[Assistant]
+For this .NET app, SQLite is added as a NuGet package to the backend; a separate SQLite server is not required. From the repository root, run: dotnet add backend/backend.csproj package Microsoft.EntityFrameworkCore.Sqlite. For EF Core migrations, also add Microsoft.EntityFrameworkCore.Design and the dotnet-ef tool. The sqlite3 command-line utility on Ubuntu is optional and is only useful for inspecting the database file.
+
+[User]
+What are EF Core migrations?
+
+[Assistant]
+EF Core migrations are versioned changes to a database schema based on changes to the C# data models. A migration records how to create or alter tables, and applying it updates the database while generally preserving existing rows. Typical commands are dotnet ef migrations add InitialCreate and dotnet ef database update. Migrations define the schema; API code is still needed to read and save ticket data.
+
+[User]
+How do I add the dotnet-ef tool, apt-get?
+
+[Assistant]
+apt-get is not needed. dotnet-ef is installed through the .NET SDK. For a project-local tool, from the repository root, create a tool manifest once with dotnet new tool-manifest, then run dotnet tool install dotnet-ef and verify with dotnet ef --version. A global install is also available with dotnet tool install --global dotnet-ef.
+
+[User]
+Sweet, I got that installed. How do we create the database file?
+
+[Assistant]
+The dotnet-ef tool alone does not create a database. The backend also needs the Microsoft.EntityFrameworkCore.Sqlite provider and Microsoft.EntityFrameworkCore.Design, plus a Ticket model, DbContext, and UseSqlite configuration. After that, dotnet ef migrations add InitialCreate creates a migration, and dotnet ef database update applies it, creating the SQLite file and tables. Initial sample ticket seeding is a separate step.
+
+[User]
+Alright, read over the backend and tell me what we should do next.
+
+[Assistant findings]
+The backend targets .NET 10 and currently only maps /api/hello. Microsoft.EntityFrameworkCore.Sqlite 10.0.14 and Microsoft.EntityFrameworkCore.Design 10.0.14 are now referenced. A local dotnet-ef 10.0.14 manifest exists under backend/dotnet-tools.json. There is not yet a ticket entity, DbContext, SQLite configuration, ticket endpoint, or migration. The backend project and build output currently show changes in git status after package installation/build activity.
+
+[Assistant]
+Recommended next steps: define a Ticket entity matching the fields the React UI edits and displays, create a DbContext, configure a stable SQLite file path, then create and apply the initial migration. The local tool manifest is under backend, so run EF commands from that directory. After schema setup, implement ticket API endpoints and replace the frontend's Faker data source. Do not remove the currently changed build outputs without reviewing them.
+
+[User]
+Is Faker available in C# or is there a similar tool?
+
+[Assistant]
+The common .NET equivalent is Bogus, a C# fake-data library available as the NuGet package Bogus. It can generate sample ticket properties for database seeding. Generate and save sample tickets only when the database is empty so they persist instead of changing every application launch; a fixed random seed can make the generated sample set repeatable.
+
+[User]
+How would we install that?
+
+[Assistant]
+Install Bogus into the backend project from the repository root with dotnet add backend/backend.csproj package Bogus. NuGet restores it and updates the backend project file. Verify with dotnet list backend/backend.csproj package. No package was installed in this turn.
+
+[User]
+Nice, can we migrate the implementation of Ticket.js into a C# model with Bogus?
+
+[Assistant]
+Added a C# Ticket model and a Bogus-based generator that mirrors the frontend ticket fields and sample issue templates. The generator creates eight tickets by default, with unique sequential IDs, random requesters and avatars, timestamps, priorities, and statuses. The backend builds successfully. The React app still uses Ticket.js because the C# data has not yet been exposed through an API or saved to SQLite.
+
+[User]
+So now the next step is making the database file, correct?
+
+[Assistant]
+Yes. First add a DbContext and configure the backend to use SQLite and a stable database path. Then create and apply the initial EF Core migration; applying it creates the database file and table. After that, seed the generated tickets once.
+
+[User]
+How can I do that?
+
+[Assistant]
+Add a TicketDbContext that exposes DbSet<Ticket>, register it in Program.cs with UseSqlite, and use a database path under the backend content root (for example, backend/App_Data/tickets.db) so it does not depend on the shell's current directory. Then run dotnet ef migrations add InitialCreate and dotnet ef database update from backend/, where the local tool manifest is located. Add the database file to a root .gitignore. No code was changed in this walkthrough.
+
+[User]
+I think I did those steps. Could you double-check?
+
+[Assistant findings]
+Confirmed backend/Data/TicketDbContext.cs exists with DbSet<Ticket>, and Program.cs registers it with UseSqlite using backend content root/App_Data/tickets.db. Running dotnet ef migrations list from backend/ built successfully and reported "No migrations were found." No database file or root .gitignore was found. Running dotnet ef from the repository root failed because the local tool manifest is under backend; it works from backend/.
+
+[Assistant]
+The context and SQLite setup are in place, but the migration and database file are not. Next run dotnet ef migrations add InitialCreate and dotnet ef database update from backend/. Then add the database file to a root .gitignore.
+
+[User]
+I don't appear to have a .gitignore file yet. Can you make that real quick?
+
+[Assistant]
+Created a root .gitignore covering .NET bin/obj, frontend dependencies/build output, SQLite database and journal files, and local .env files (while allowing .env.example). Verified the patterns with git check-ignore. Existing tracked build artifacts remain tracked; ignore rules do not untrack them.
+
+[User]
+Can we make an API route to make/fetch ticket objects now?
+
+[Assistant]
+Added GET /api/tickets, GET /api/tickets/{id}, and POST /api/tickets. Startup seeds eight Bogus tickets only when the database is empty; POST validates required title, description, and priority, then saves a new open ticket. Updated backend.http for local requests. SQLite cannot order DateTimeOffset in SQL, so the small ticket list is sorted in memory.
+
+[Assistant verification]
+Backend build passed with zero warnings and errors. API smoke tests against an isolated copy of the SQLite database verified GET list (8 initial tickets), POST creation (201), GET by ID, inclusion in the list, HTTP 400 for invalid input, and persistence after an API restart. The temporary test database was removed. The React app has not yet been switched to use these endpoints.
+
+[User]
+Can we update the actual build so the work so far shows on the public IP?
+
+[Assistant]
+Deployed the latest Vite frontend build to the existing Nginx root at /var/www/interview-app and published the backend API to /opt/interview-app. Applied the InitialCreate migration to a new production SQLite database, configured its ownership for the interview-app service account, then restarted the service. Nginx returned the built site and assets successfully and proxied /api/tickets, which returned eight persistent seed tickets. The React UI still uses its frontend mock data and is not yet connected to the API. External access from a separate network was not verified.
+
+[User]
+What Faker bundle size warning are you talking about?
+
+[Assistant]
+The most recent frontend build emitted Vite's advisory that a JavaScript chunk exceeded its 500 kB minified-size threshold: the output was 655.16 kB minified and 230.73 kB gzipped. This is a warning, not a build failure. It is related to the @faker-js/faker import in frontend/src/Ticket.js, not the C# Bogus package. Removing frontend Faker after wiring the UI to the backend should reduce the bundle.
+
+[User]
+Let's make the next step be having the frontend retrieve tickets from the API backend.
+
+[Assistant]
+Updated the React app to fetch GET /api/tickets with loading, error/retry, and empty states. Added a Vite development proxy to the backend, removed the frontend Ticket.js generator and @faker-js/faker dependency, and kept favorite/edit interactions in client state for now. Build and lint passed; the bundle is now 239.01 kB minified (74.43 kB gzipped), with no size warning. Verified the Vite proxy and mobile list/detail display.
+
+[Assistant deployment]
+Published the new frontend bundle to /var/www/interview-app. Verified the Nginx page and JavaScript asset return HTTP 200, /api/tickets returns eight persisted tickets through Nginx, and both Nginx and the API service remain active. Favorites and edits still need update endpoints to persist.
+
+[User]
+The avatar images are no longer valid. Can we fix that?
+
+[Assistant]
+Added a reusable RequesterAvatar component for ticket cards and ticket details. It continues to show an avatar image when the URL loads, and shows the requester's initials when the URL is missing or fails, so the interface no longer depends on the remote IPFS avatar host being available.
+
+[Assistant verification]
+Frontend build and lint passed. In the shared local browser, all eight ticket-card avatar requests failed and correctly rendered initials instead; the ticket detail view also rendered initials for the failed image.
+
+[Assistant deployment]
+Published the rebuilt frontend assets to the existing /var/www/interview-app Nginx root without changing server configuration. Verified the new HTML and both referenced assets return HTTP 200, the JavaScript bundle contains the avatar fallback, /api/tickets still returns eight tickets, and Nginx and the API service remain active. External access from a separate network was not rechecked.
+
+[User]
+Did we stop using the randomuser.me API for a reason?
+
+[Assistant]
+Repository history shows no recorded reason to stop using Random User. The original single-ticket example used a randomuser.me portrait URL; when the frontend changed to Faker-generated tickets, that was replaced with Faker's avatar URL, and the backend later used Bogus Internet.Avatar URLs. Those URLs currently point to IPFS and fail in the browser. The initials fallback prevents broken-image UI but does not restore portraits.
+
+[User]
+Can we switch back and update the database?
+
+[Assistant]
+Added a shared backend RandomUserAvatarGenerator using direct Random User portrait image URLs. Seeded requesters now get a portrait category matching their generated name gender, and newly created tickets also receive Random User portrait URLs.
+
+[Assistant database update]
+The live SQLite database contained eight tickets, all with IPFS avatar URLs; the local development database was empty. Backed up the live database to /opt/interview-app/App_Data/tickets.db.avatar-backup-20261101T133402Z, then updated only the eight RequesterImage fields to tested, gender-matched Random User portrait URLs. The backup retained all eight original rows and passed SQLite integrity_check.
+
+[Assistant verification]
+Backend build and publish succeeded. Deployed the updated backend without overwriting production appsettings, restarted the API, and verified Nginx and the API service remain active. The production API returns all eight tickets with Random User URLs; the production page and assets return HTTP 200. In the shared browser, all eight portrait images loaded (naturalWidth 128) with no initials fallback. External access from a separate network was not rechecked.
+
+[User]
+Add a footer bar with a Tickets page for the existing UI and a Profile page with hard-coded technician information.
+
+[Assistant]
+Added an accessible two-tab bottom navigation for Tickets and Profile. Tickets continues to show the existing API-backed list and detail flow; the tab bar is hidden in ticket details, where the existing back button returns to the list. Added a sample technician profile for Casey Morgan with role, team, example.com email, availability, and a visible demo label.
+
+[Assistant verification]
+Frontend build and lint passed. At a 390px viewport, Profile and Tickets navigation worked without horizontal overflow; ticket details hid the bottom navigation. Published the frontend bundle to /var/www/interview-app and verified the page, assets, and same-origin API through Nginx. Nginx and the API service remain active.
+
+[User]
+Add staff information to the database: five people total, with four technicians in two teams of two and one administrator.
+
+[User clarification]
+The two teams are Desktop Support and Application Support. Show one default technician on the Profile tab.
+
+[Assistant]
+Added Team and Technician EF Core models, seeded two teams and five fictional staff records, and created the AddTeamsAndTechnicians migration. Added GET /api/technicians and changed the Profile tab to fetch the default technician instead of using hard-coded details. Casey Morgan is the default member of Desktop Support. Riley Chen is the unassigned Administrator; the role is descriptive only and does not provide authorization.
+
+[Assistant verification]
+Backend build, frontend build, and frontend lint passed. Applied the migration to a disposable copy of the live database first, confirming eight tickets remained and the new tables contained two teams and five staff. Backed up production to /opt/interview-app/App_Data/tickets.db.staff-backup-20261101T1412Z, then applied the migration and deployed the API. Production database integrity is ok, with eight tickets, two teams, and five technicians. The live API returns all five staff records and all eight tickets; the public frontend page and assets return HTTP 200. Verified the Profile view in the browser at 390px, showing Casey Morgan's database-backed record and no horizontal overflow. Nginx and the API service remain active.
+
+[User]
+Add an edit function to the technician page, similar to ticket details.
+
+[User clarification]
+Edit only the visible default technician and persist the changes to the database. The user was informed that the update endpoint would be public and unauthenticated.
+
+[Assistant]
+Added an Edit profile form for the default technician's name, email, role, team, and availability. Added GET /api/teams and PUT /api/technicians/{id}; the PUT endpoint validates input and only permits changes to the default technician. The Profile page saves through the API and shows server validation or save errors.
+
+[Assistant verification]
+Backend build, frontend build, and frontend lint passed. API smoke tests against an isolated copy verified a valid update persists, invalid email returns HTTP 400, and attempting to update a non-default staff record returns HTTP 404. The production API was deployed and verified through Nginx; validation and scope failures were checked without modifying the live profile. The frontend editor displayed all five fields at 390px, Cancel retained the original profile, and there was no horizontal overflow. The updated production page and assets return HTTP 200; both Nginx and API services are active. The public update endpoint remains unauthenticated and is appropriate only for this demo.
+
+[User]
+Add a technician assignment to each ticket and add a third footer page showing the current technician's tickets.
+
+[User clarification]
+Spread the existing tickets evenly across the four technicians, assign new tickets to the default technician, and allow reassignment from ticket details.
+
+[Assistant]
+Added required technician assignment data to tickets, API responses, and ticket updates. Added technician names to ticket cards and details, an assignment selector to the edit form, default assignment for new tickets, and a My Tickets footer tab filtered to the default technician.
+
+[Assistant verification]
+Backend publish, frontend build, and frontend lint passed. The assignment migration succeeded on an isolated database copy, preserving all eight tickets and distributing two to each technician with no invalid or missing assignments. API tests verified reassignment persistence, rejection of Administrator assignment with HTTP 400, and default assignment for new tickets. After the user reported that the details page lacked the assignee and approved public deployment, backed up production to /opt/interview-app/App_Data/tickets.db.assignment-backup-20261101T1453Z, applied the migration, and deployed the API and frontend. Production still has eight tickets, two assigned to each of the four technicians; foreign-key and integrity checks passed. The public API returns assignment IDs and names for both list and details, and the live Nginx page and referenced assets return HTTP 200. Browser verification through the local Vite proxy to the production API showed “Sam Rivera” on ticket #8530’s details page at 390px with no horizontal overflow. Nginx and the API service are active. The current default technician name was preserved as stored.
+
+[User]
+Add a login page that lists users and lets the user select an account when opening the app.
+
+[User clarification]
+Use a demo-only account selector with all five staff records, and remember the selected account until Sign out.
+
+[Assistant]
+Added a staff account selection page backed by GET /api/technicians. The chosen technician controls the Profile page and My Tickets filter; the selected ID is saved in browser localStorage and cleared by Sign out. Only the default technician profile remains editable because the API only supports editing that record. The screen clearly states that selection does not verify identity.
+
+[Assistant verification]
+Frontend build and lint passed. Browser checks verified all five accounts, selecting Jordan Lee, matching My Tickets/Profile identity, persistence after reload, and Sign out returning to the account chooser. Keyboard selection and sign-out worked. The login page has no horizontal overflow at 390px or 1280px. This is a demo identity selector, not authentication. After the user approved publishing, deployed the frontend to /var/www/interview-app and verified the public HTML, login JavaScript bundle, and stylesheet return HTTP 200; Nginx and the API service remain active. No backend or database changes were needed.
+
+[User]
+Replace the Profile page's Sign out button with a three-dot menu containing Edit and Sign out, and restore profile editing.
+
+[User clarification]
+Allow editing all staff profiles, with the unauthenticated public endpoint limitation explained.
+
+[Assistant]
+Added a three-dot Profile actions dropdown with Edit and Sign out. Enabled the existing profile edit form for every staff record and changed the API update route to accept any existing technician ID while retaining field validation.
+
+[Assistant verification]
+Backend build passed with zero warnings and errors; frontend build and lint passed. API checks on an isolated copy verified updates persist for a technician and Administrator, invalid email returns HTTP 400, and an unknown ID returns HTTP 404. Browser checks verified the menu contains Edit and Sign out, editing a non-default profile updates the displayed profile, and there is no horizontal overflow at 390px or 1280px. The public API and site have not been updated with this change.
+
+[User]
+Approved deploying the Profile actions menu and all-staff profile editing.
+
+[Assistant]
+Published the frontend build to `/var/www/interview-app` and the API to `/opt/interview-app`, preserving production appsettings and excluding `App_Data`. Restarted `interview-app.service`. Backed up deployed files to `/home/ubuntu/interview-deploy-backups/profile-actions-20261101T1536Z`.
+
+[Assistant verification]
+Frontend lint and production build passed; backend publish completed. The API service is active, Nginx returns HTTP 200 for `/api/technicians` with five staff records, and the deployed JavaScript bundle contains the Sign out menu action. A deliberately invalid email update to an existing non-default staff ID returned HTTP 400 before saving, confirming the broadened route reaches validation without modifying profile data. The live SQLite database was excluded from both deployment and backend backup.
+
+[User]
+Move the assigned technician display into a separate ticket-details section titled Responsibility.
+
+[Assistant]
+Removed the assigned technician row from Ticket Info and added a Responsibility card with the same Assigned technician label and value. Assignment editing and API behavior are unchanged.
+
+[Assistant verification]
+Frontend lint and production build passed. This UI change is local and has not been deployed.
+
+[User]
+Allow technicians to belong to multiple teams.
+
+[User clarification]
+Keep each ticket assigned to one team, and require that team to be one of the assigned technician's memberships. Block removing a team membership while tickets are assigned to that team. When creating a ticket, use the default technician's sole team automatically, but require a team choice if that technician belongs to multiple teams.
+
+[Assistant]
+Replaced the technician's single TeamId with a TechnicianTeams many-to-many join table and added a data-preserving migration. Technician profiles now support selecting multiple teams. Ticket editing filters team choices to the selected technician's memberships, and the API validates memberships, blocks removing memberships used by assigned tickets, and handles ambiguous or sole-team defaults when creating tickets.
+
+[Assistant verification]
+Backend build passed with zero warnings, frontend lint and production build passed, and EF reports no pending model changes. A disposable SQLite migration check preserved existing memberships and ticket teams with no foreign-key violations. Isolated API tests passed for multi-team profile updates, explicit team selection when the default technician has multiple teams, automatic selection for a sole team, membership-removal blocking, and rejecting ticket teams outside the assigned technician's memberships. After user approval, backed up the local development database to the session backup folder and applied the migration; its four existing memberships were preserved, it has five technicians, two teams, zero tickets, and no foreign-key violations. The production database and deployment were not changed.
+
+[User]
+Add a tab at the top of My Tickets to view tickets for the technician's teams.
+
+[Assistant]
+Added My Tickets and Team Tickets view buttons. Team Tickets includes tickets whose TeamId belongs to the current technician; opening a ticket and returning preserves the selected view. The frontend also recognizes the legacy single-team API fields while the multi-team API is not deployed.
+
+[Assistant verification]
+Frontend lint and production build passed. Browser checks confirmed the current technician's My Tickets view contains 2 tickets and Team Tickets contains 6 tickets for Desktop Support. No backend or production changes were made.
+
+[User]
+Add notes to each ticket with an editable text box, the last edit timestamp, and the editor's identity.
+
+[User clarification]
+Keep a history of multiple notes rather than overwriting one note.
+
+[Assistant]
+Added persistent ticket note history. The ticket detail page loads prior notes, shows the latest editor and timestamp, and lets the selected technician add a new note without replacing earlier entries. The API validates note content and technician attribution and timestamps entries on the server.
+
+[Assistant verification]
+Backend build passed with zero warnings, frontend lint and production build passed, EF reports no pending model changes, and the local development database was backed up before applying the additive TicketNotes migration. Isolated API checks passed for note creation, newest-first history, technician attribution, empty/overlong content, unknown technicians, and missing tickets. Foreign-key checks are clean. The public database and deployment were not changed.
+
+[User]
+Deploy everything so the updated application works in the browser.
+
+[Assistant]
+Created production backups of the API files, frontend files, and SQLite database. Applied the TechnicianTeamMemberships and AddTicketNotes migrations, preserving existing technician memberships and tickets. Published the updated API while preserving production appsettings and App_Data, and deployed the frontend to the configured Nginx root.
+
+[Assistant verification]
+The API service is active, Nginx serves the updated frontend and proxies the updated API, and the production database retains all 8 tickets with clean foreign-key and integrity checks. The browser loaded the account selector, displayed ticket details and the notes editor without errors, and the Team Tickets tab returned 6 Desktop Support tickets. No production note was created during verification.
+
+[User]
+The site shows a blank page when trying to edit a ticket.
+
+[Assistant]
+Reproduced the browser error: TicketEditForm called filter on an undefined teams prop. Passed the available teams through from TicketDetails and deployed a frontend-only hotfix.
+
+[Assistant verification]
+Frontend lint and production build passed. In the deployed browser, opening Edit Ticket rendered the title, description, priority, status, technician and team fields, and Notes section with no browser errors. The API and database were not changed. The previous frontend files were backed up under /home/ubuntu/interview-deploy-backups/edit-form-hotfix-20261101T1650Z.
+
+[User]
+Move Cancel and Save changes below the Edit Ticket and Responsibility sections.
+
+[Assistant]
+Moved the shared Cancel and Save changes actions below both cards while keeping them inside the same form.
+
+[Assistant verification]
+Frontend lint and production build passed. The buttons still submit or cancel the full edit form. This UI change is local and has not been deployed.
+
+[User]
+Associate every ticket with a team, set that team to the assigned technician's team, and show it in ticket details.
+
+[User clarification]
+When a technician changes teams, their existing assigned tickets should follow the new team.
+
+[Assistant]
+Added required Ticket.TeamId with a foreign key to Teams and a migration that backfills existing tickets from their assigned technician. Ticket creation and reassignment now copy the technician's team; technician team changes update that technician's assigned tickets, and removing a team is rejected while tickets remain assigned. Ticket API responses include TeamId and TeamName, shown read-only in the Responsibility section in both ticket details and edit mode.
+
+[Assistant verification]
+Backend build passed with zero warnings, frontend lint and production build passed, and EF reports no pending model changes. A disposable SQLite migration test confirmed an existing ticket assigned to technician 3 backfills to team 2. Isolated API checks passed for listing, creating, reassignment, technician team changes, and rejecting team removal while assigned tickets exist. Applied all migrations to the local development database after backing it up to `backend/App_Data/tickets.db.team-backup-20261101T1558Z`; it has the TeamId column, two teams, five technicians, zero tickets, and no foreign-key violations. The production database and deployment were not changed.
+
+[User]
+Approved updating the public database with a coordinated API and frontend rollout.
+
+[Assistant]
+Created a consistent production SQLite backup at `/opt/interview-app/App_Data/tickets.db.team-backup-20261101T160602Z` and backed up deployed files to `/home/ubuntu/interview-deploy-backups/ticket-team-20261101T160602Z`. Stopped the API briefly, applied `AddTeamsToTickets`, deployed the updated API and frontend while preserving production appsettings and `App_Data`, and restarted the service.
+
+[Assistant verification]
+The production database retains all 8 tickets; all ticket TeamIds match their assigned technicians, foreign-key checks are clean, and SQLite integrity is `ok`. The API service is active. Nginx API responses expose matching `teamId` and `teamName` on ticket lists and details, and the deployed frontend bundle includes the Responsibility and Assigned team labels. No production tickets were created or otherwise modified.
+
+[User]
+Add a separate Responsibility section to the ticket edit view as well.
+
+[Assistant]
+Split the edit form into an Edit Ticket card for title, description, priority, and status, and a Responsibility card for the Assigned technician selector. Kept both cards within the same form so Save continues to submit all fields together.
+
+[Assistant verification]
+Frontend lint and production build passed. This UI change is local and has not been deployed.
